@@ -4,7 +4,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [status, setStatus] = useState("Idle");
-  const [history, setHistory] = useState([]); // New state for history
+  const [history, setHistory] = useState([]); 
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -17,7 +17,8 @@ function App() {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch("http://localhost:8000/history");
+      // 👇 CHANGE THIS URL TO YOUR RENDER URL
+      const response = await fetch("https://YOUR-RENDER-URL.onrender.com/history");
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
@@ -74,7 +75,8 @@ function App() {
     formData.append("file", audioBlob, "recording.webm");
 
     try {
-      const response = await fetch("http://localhost:8000/transcribe", {
+      // 👇 CHANGE THIS URL TO YOUR RENDER URL
+      const response = await fetch("https://YOUR-RENDER-URL.onrender.com/transcribe", {
         method: "POST",
         body: formData,
       });
