@@ -30,10 +30,11 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 
 app = FastAPI(title="Speech-to-Text API")
 
-# Allow requests from your frontend (temporarily allowing all for deployment)
+# --- SECURED CORS ---
+# Now only allows requests from your live Firebase Hosting URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["https://speech-recognition-5ad50.web.app"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
