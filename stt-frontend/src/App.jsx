@@ -18,7 +18,7 @@ function App() {
   const fetchHistory = async () => {
     try {
       // 👇 CHANGE THIS URL TO YOUR RENDER URL
-      const response = await fetch("https://YOUR-RENDER-URL.onrender.com/history");
+      const response = await fetch("https://stt-backend-usxc.onrender.com/history");
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
@@ -76,7 +76,7 @@ function App() {
 
     try {
       // 👇 CHANGE THIS URL TO YOUR RENDER URL
-      const response = await fetch("https://YOUR-RENDER-URL.onrender.com/transcribe", {
+      const response = await fetch("https://stt-backend-usxc.onrender.com/transcribe", {
         method: "POST",
         body: formData,
       });
