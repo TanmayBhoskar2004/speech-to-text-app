@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+groq
+firebase-admin
+python-multipart
