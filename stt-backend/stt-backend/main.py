@@ -1,4 +1,5 @@
 import os
+import json
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -10,22 +11,29 @@ from firebase_admin import credentials, firestore
 from groq import Groq
 
 # --- Initialize Firebase Admin SDK ---
-# Place serviceAccountKey.json in the same directory
-cred = credentials.Certificate("serviceAccountKey.json")
+# Check if we are in the cloud (Render) using the environment variable
+service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+
+if service_account_json:
+    # Cloud deployment: Load from the Render Secret
+    cred = credentials.Certificate(json.loads(service_account_json))
+else:
+    # Local deployment: Load from the local file
+    cred = credentials.Certificate("serviceAccountKey.json")
+
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # --- Initialize Groq Client ---
-# It's best practice to use environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 app = FastAPI(title="Speech-to-Text API")
 
-# Allow requests from your React dev server (update for production)
+# Allow requests from your frontend (temporarily allowing all for deployment)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,7 +51,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
     Accepts an audio file, transcribes it via Groq Whisper,
     saves the result to Firestore, and returns the text.
     """
-    # 1. Validate file type (optional but recommended)
+    # 1. Validate file type
     allowed_types = {
         "audio/wav", "audio/mpeg", "audio/webm",
         "audio/ogg", "audio/flac", "audio/mp4", "audio/x-m4a",
@@ -65,9 +73,9 @@ async def transcribe_audio(file: UploadFile = File(...)):
         with open(temp_path, "rb") as audio_file:
             transcription = groq_client.audio.transcriptions.create(
                 file=audio_file,
-                model="whisper-large-v3-turbo",  # or "whisper-large-v3"
+                model="whisper-large-v3-turbo",
                 response_format="json",
-                language="en",  # optional: set to None for auto-detect
+                language="en",
             )
 
         text = transcription.text
@@ -95,12 +103,11 @@ async def transcribe_audio(file: UploadFile = File(...)):
             os.remove(temp_path)
 
 
-# --- NEW ENDPOINT: Fetch History ---
+# --- Fetch History Endpoint ---
 @app.get("/history")
 def get_history():
     """Fetches the 20 most recent transcriptions from Firestore."""
     try:
-        # Query Firestore: collection 'transcriptions', order by 'created_at' descending, limit 20
         docs = (
             db.collection("transcriptions")
             .order_by("created_at", direction=firestore.Query.DESCENDING)
@@ -114,7 +121,6 @@ def get_history():
             history.append({
                 "id": doc.id,
                 "text": data.get("text", ""),
-                # Convert Firestore timestamp to a string so React can read it
                 "created_at": data.get("created_at").isoformat() if data.get("created_at") else None
             })
             
