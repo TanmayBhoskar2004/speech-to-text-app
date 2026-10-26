@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+/* 3D Perspective Grid Animation */
+.bg-grid-3d {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 60vh;
+  background-image: 
+    linear-gradient(to right, rgba(99, 102, 241, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.15) 1px, transparent 1px);
+  background-size: 50px 50px;
+  transform: perspective(600px) rotateX(65deg) translateY(0);
+  transform-origin: bottom center;
+  animation: grid-move 3s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+  mask-image: linear-gradient(to top, black 20%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black 20%, transparent 100%);
+}
+
+@keyframes grid-move {
+  0% { transform: perspective(600px) rotateX(65deg) translateY(0); }
+  100% { transform: perspective(600px) rotateX(65deg) translateY(50px); }
+}
+
+/* Floating animation for the mic */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Custom fade-in text animations */
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUpFade 0.8s ease-out forwards;
+}
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
