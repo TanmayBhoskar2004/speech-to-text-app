@@ -2,6 +2,7 @@ import os
 import json
 import shutil
 import tempfile
+import time
 from datetime import datetime, timezone
 
 import firebase_admin
@@ -11,14 +12,11 @@ from firebase_admin import credentials, firestore
 from groq import Groq
 
 # --- Initialize Firebase Admin SDK ---
-# Check if we are in the cloud (Render) using the environment variable
 service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
 
 if service_account_json:
-    # Cloud deployment: Load from the Render Secret
     cred = credentials.Certificate(json.loads(service_account_json))
 else:
-    # Local deployment: Load from the local file
     cred = credentials.Certificate("serviceAccountKey.json")
 
 firebase_admin.initialize_app(cred)
@@ -31,7 +29,6 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 app = FastAPI(title="Speech-to-Text API")
 
 # --- SECURED CORS ---
-# Now only allows requests from your live Firebase Hosting URL
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://speech-recognition-5ad50.web.app"], 
@@ -70,14 +67,26 @@ async def transcribe_audio(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # 3. Send to Groq Whisper
-        with open(temp_path, "rb") as audio_file:
-            transcription = groq_client.audio.transcriptions.create(
-                file=audio_file,
-                model="whisper-large-v3-turbo",
-                response_format="json",
-                language="en",
-            )
+        # 3. Send to Groq Whisper (With Smart Retry & Higher Accuracy)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with open(temp_path, "rb") as audio_file:
+                    transcription = groq_client.audio.transcriptions.create(
+                        file=audio_file,
+                        model="whisper-large-v3", # Changed from turbo to full model for accuracy
+                        response_format="json",
+                        language="en",
+                        # 👇 The prompt forces the AI to use punctuation and proper spelling
+                        prompt="Transcribe accurately with proper punctuation and capitalization.",
+                    )
+                break # If successful, break out of the retry loop
+            except Exception as e:
+                # If Groq is busy (rate limit), wait and try again
+                if "429" in str(e) and attempt < max_retries - 1:
+                    time.sleep(2 ** attempt) # Wait 1s, then 2s
+                else:
+                    raise e # If it's a different error, or out of retries, crash
 
         text = transcription.text
 
@@ -87,7 +96,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
             "original_filename": file.filename,
             "content_type": file.content_type,
             "created_at": datetime.now(timezone.utc),
-            "model_used": "whisper-large-v3-turbo",
+            "model_used": "whisper-large-v3",
         })
 
         return {

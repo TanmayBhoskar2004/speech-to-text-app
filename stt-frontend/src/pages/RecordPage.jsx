@@ -15,7 +15,12 @@ export default function RecordPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      // 👇 IMPROVEMENT 1: Force high-quality Opus codec and 128kbps bitrate
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: "audio/webm;codecs=opus",
+        audioBitsPerSecond: 128000, 
+      });
+      
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -29,7 +34,9 @@ export default function RecordPage() {
         streamRef.current.getTracks().forEach((track) => track.stop());
       };
 
-      mediaRecorder.start();
+      // 👇 IMPROVEMENT 2: Record in 1-second chunks to prevent corruption
+      mediaRecorder.start(1000);
+      
       setIsRecording(true);
       setStatus("Recording...");
       setTranscript("");
