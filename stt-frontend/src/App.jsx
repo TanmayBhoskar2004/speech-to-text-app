@@ -1,160 +1,75 @@
-import { useEffect, useRef, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
+import { Mic, History, Sparkles } from "lucide-react";
+import RecordPage from "./pages/RecordPage";
+import HistoryPage from "./pages/HistoryPage";
 
-function App() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [status, setStatus] = useState("Idle");
-  const [history, setHistory] = useState([]); 
+function Navigation() {
+  const location = useLocation();
   
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const streamRef = useRef(null);
-
-  // Fetch history when the component mounts
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = async () => {
-    try {
-      // 👇 CHANGE THIS URL TO YOUR RENDER URL
-      const response = await fetch("https://stt-backend-usxc.onrender.com/history");
-      if (response.ok) {
-        const data = await response.json();
-        setHistory(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch history", err);
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-        await uploadAudio(audioBlob);
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setStatus("Recording...");
-      setTranscript("");
-    } catch (err) {
-      setStatus(`Error accessing microphone: ${err.message}`);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setStatus("Processing...");
-    }
-  };
-
-  const uploadAudio = async (audioBlob) => {
-    const formData = new FormData();
-    formData.append("file", audioBlob, "recording.webm");
-
-    try {
-      // 👇 CHANGE THIS URL TO YOUR RENDER URL
-      const response = await fetch("https://stt-backend-usxc.onrender.com/transcribe", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Transcription failed");
-      }
-
-      const data = await response.json();
-      setTranscript(data.text);
-      setStatus("Done");
-      
-      // Refresh the history list after a successful transcription!
-      fetchHistory(); 
-    } catch (err) {
-      setStatus(`Error: ${err.message}`);
-    }
-  };
+  const navItems = [
+    { path: "/", label: "Record", icon: <Mic className="w-5 h-5 mr-2" /> },
+    { path: "/history", label: "History", icon: <History className="w-5 h-5 mr-2" /> },
+  ];
 
   return (
-    <div style={{ maxWidth: 600, margin: "50px auto", fontFamily: "sans-serif" }}>
-      <h1>🎙️ Speech to Text Recognition System </h1>
-
-      <div style={{ marginBottom: 20 }}>
-        <button
-          onClick={startRecording}
-          disabled={isRecording}
-          style={{ padding: "10px 20px", marginRight: 10, fontSize: 16 }}
-        >
-          Start Recording
-        </button>
-        <button
-          onClick={stopRecording}
-          disabled={!isRecording}
-          style={{ padding: "10px 20px", fontSize: 16 }}
-        >
-          Stop & Transcribe
-        </button>
-      </div>
-
-      <p><strong>Status:</strong> {status}</p>
-
-      {transcript && (
-        <div
-          style={{
-            background: "#e8f5e9",
-            padding: 20,
-            borderRadius: 8,
-            marginTop: 20,
-            borderLeft: "5px solid #4caf50"
-          }}
-        >
-          <h3>Latest Transcript:</h3>
-          <p style={{ whiteSpace: "pre-wrap", fontSize: "18px" }}>{transcript}</p>
-        </div>
-      )}
-
-      {/* --- NEW HISTORY SECTION --- */}
-      <hr style={{ margin: "40px 0" }} />
-      <h3>📜 Past Transcriptions</h3>
-      
-      {history.length === 0 ? (
-        <p>No history yet. Record something!</p>
-      ) : (
-        <ul style={{ listStyleType: "none", padding: 0 }}>
-          {history.map((item) => (
-            <li key={item.id} style={{ background: "#f5f5f5", padding: 15, marginBottom: 10, borderRadius: 8 }}>
-              <p style={{ margin: "0 0 10px 0", fontSize: "16px" }}>{item.text}</p>
-              <small style={{ color: "#666" }}>
-                {item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown time"}
-              </small>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <nav className="flex justify-center gap-4 mb-12">
+      {navItems.map((item) => {
+        const isActive = location.pathname === item.path;
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={`flex items-center px-6 py-3 rounded-full font-medium transition-all duration-300 ${
+              isActive
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+            }`}
+          >
+            {item.icon}
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+        {/* Background Glow Effect */}
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[300px] bg-indigo-500/20 blur-[120px] pointer-events-none rounded-full"></div>
+        
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+          
+          {/* Header */}
+          <header className="text-center mb-12">
+            <div className="flex justify-center mb-4">
+              <div className="bg-indigo-500/20 p-4 rounded-3xl border border-indigo-500/30">
+                <Sparkles className="w-10 h-10 text-indigo-400" />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4">
+              AI Speech<span className="text-indigo-400">2</span>Text
+            </h1>
+            <p className="text-slate-400 text-lg">
+              Powered by Groq Whisper & Firebase
+            </p>
+          </header>
+
+          <Navigation />
+
+          {/* Page Content */}
+          <main>
+            <Routes>
+              <Route path="/" element={<RecordPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+            </Routes>
+          </main>
+
+        </div>
+      </div>
+    </Router>
+  );
+}
