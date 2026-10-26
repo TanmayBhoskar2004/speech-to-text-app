@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Mic, Square, Loader2, CheckCircle2 } from "lucide-react";
+import { Mic, Square, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -34,7 +34,7 @@ export default function RecordPage() {
       setStatus("Recording...");
       setTranscript("");
     } catch (err) {
-      setStatus(`Microphone Error: ${err.message}`);
+      setStatus(`Error: Microphone access denied.`);
     }
   };
 
@@ -51,15 +51,13 @@ export default function RecordPage() {
     formData.append("file", audioBlob, "recording.webm");
 
     try {
-      // 👇 YOUR RENDER URL IS ALREADY HERE
       const response = await fetch("https://stt-backend-usxc.onrender.com/transcribe", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Transcription failed");
+        throw new Error("Transcription failed");
       }
 
       const data = await response.json();
@@ -71,64 +69,69 @@ export default function RecordPage() {
   };
 
   return (
-    <div className="flex flex-col items-center animate-in fade-in zoom-in duration-500">
+    <div className="w-full max-w-xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-[2.5rem] p-10 flex flex-col items-center shadow-2xl">
       
-      {/* Recorder Card */}
-      <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-10 flex flex-col items-center shadow-2xl relative overflow-hidden">
-        
-        {/* Status Badge */}
-        <div className="h-10 mb-8 flex items-center justify-center px-4 rounded-full bg-slate-800/50 border border-slate-700/50">
-          {status === "Processing..." ? (
-            <span className="flex items-center text-indigo-400 font-medium">
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Transcribing...
-            </span>
-          ) : status === "Recording..." ? (
-            <span className="text-rose-400 font-medium animate-pulse flex items-center">
-              <span className="w-2 h-2 bg-rose-500 rounded-full mr-2"></span> Listening...
-            </span>
-          ) : status === "Done" ? (
-            <span className="flex items-center text-emerald-400 font-medium">
-              <CheckCircle2 className="w-4 h-4 mr-2" /> Transcription Complete
-            </span>
-          ) : status.includes("Error") ? (
-            <span className="text-rose-500 font-medium">{status}</span>
-          ) : (
-            <span className="text-slate-400 font-medium">Tap to speak</span>
-          )}
-        </div>
-
-        {/* Big Microphone Button */}
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={status === "Processing..."}
-          className={`group relative flex items-center justify-center w-32 h-32 rounded-full transition-all duration-500 ${
-            isRecording 
-              ? "bg-rose-500 shadow-[0_0_40px_rgba(244,63,94,0.4)]" 
-              : "bg-indigo-600 shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:scale-105 hover:bg-indigo-500"
-          } ${status === "Processing..." ? "opacity-70 cursor-wait" : ""}`}
-        >
-          {isRecording && (
-            <span className="absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-40"></span>
-          )}
-          {isRecording ? (
-            <Square className="w-10 h-10 text-white fill-white relative z-10" />
-          ) : (
-            <Mic className="w-12 h-12 text-white relative z-10" />
-          )}
-        </button>
-
-        {/* Latest Transcript Result */}
-        {transcript && (
-          <div className="mt-10 w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-6 animate-in slide-in-from-bottom-4 duration-500">
-            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3">
-              Transcription
-            </h3>
-            <p className="text-lg text-slate-200 leading-relaxed font-medium">
-              "{transcript}"
-            </p>
-          </div>
+      {/* Status Bar */}
+      <div className="h-10 mb-10 flex items-center justify-center px-6 rounded-full bg-slate-800/50 border border-slate-700/50">
+        {status === "Processing..." && (
+          <span className="flex items-center text-indigo-400 font-semibold"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Transcribing Audio...</span>
+        )}
+        {status === "Recording..." && (
+          <span className="text-rose-400 font-semibold animate-pulse flex items-center"><span className="w-2.5 h-2.5 bg-rose-500 rounded-full mr-2.5 shadow-[0_0_10px_rgba(244,63,94,0.8)]"></span> Listening...</span>
+        )}
+        {status === "Done" && (
+          <span className="flex items-center text-emerald-400 font-semibold"><CheckCircle2 className="w-4 h-4 mr-2" /> Transcription Complete</span>
+        )}
+        {status.includes("Error") && (
+          <span className="text-rose-500 font-semibold flex items-center"><AlertCircle className="w-4 h-4 mr-2" /> {status}</span>
+        )}
+        {status === "Idle" && (
+          <span className="text-slate-400 font-semibold">Tap the microphone to start</span>
         )}
       </div>
+
+      {/* Mic Button */}
+      <button
+        onClick={isRecording ? stopRecording : startRecording}
+        disabled={status === "Processing..."}
+        className={`group relative flex items-center justify-center w-36 h-36 rounded-full transition-all duration-500 ${
+          isRecording 
+            ? "bg-rose-500 shadow-[0_0_60px_rgba(244,63,94,0.5)] scale-110" 
+            : "bg-indigo-600 shadow-[0_0_50px_rgba(79,70,229,0.4)] hover:scale-105 hover:bg-indigo-500 hover:shadow-[0_0_70px_rgba(79,70,229,0.6)]"
+        } ${status === "Processing..." ? "opacity-60 cursor-wait" : ""}`}
+      >
+        {isRecording && (
+          <>
+            <span className="absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-30"></span>
+            <span className="absolute -inset-4 rounded-full border border-rose-500/30 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"></span>
+          </>
+        )}
+        {isRecording ? (
+          <Square className="w-12 h-12 text-white fill-white relative z-10" />
+        ) : (
+          <Mic className="w-14 h-14 text-white relative z-10" />
+        )}
+      </button>
+
+      {/* Latest Transcript */}
+      {transcript && (
+        <div className="mt-12 w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6 animate-in slide-in-from-bottom-4 duration-500">
+          <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3 flex items-center">
+            <SparklesIcon /> Transcription Result
+          </h3>
+          <p className="text-lg text-slate-200 leading-relaxed font-medium">
+            "{transcript}"
+          </p>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SparklesIcon() {
+  return (
+    <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
   );
 }

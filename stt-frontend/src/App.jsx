@@ -19,10 +19,10 @@ function Navigation() {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex items-center px-6 py-3 rounded-full font-medium transition-all duration-300 ${
+            className={`flex items-center px-8 py-3 rounded-full font-semibold transition-all duration-300 ${
               isActive
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+                ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+                : "bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
             }`}
           >
             {item.icon}
@@ -37,23 +37,24 @@ function Navigation() {
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
-        {/* Background Glow Effect */}
-        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[300px] bg-indigo-500/20 blur-[120px] pointer-events-none rounded-full"></div>
+      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30 overflow-hidden">
         
-        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16">
+        {/* Ambient Background Glow */}
+        <div className="fixed top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+        
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-16 flex flex-col items-center">
           
           {/* Header */}
-          <header className="text-center mb-12">
-            <div className="flex justify-center mb-4">
-              <div className="bg-indigo-500/20 p-4 rounded-3xl border border-indigo-500/30">
-                <Sparkles className="w-10 h-10 text-indigo-400" />
+          <header className="text-center mb-12 flex flex-col items-center">
+            <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 p-[1px] rounded-2xl mb-6 shadow-2xl shadow-indigo-500/20">
+              <div className="bg-slate-900 p-4 rounded-2xl">
+                <Sparkles className="w-8 h-8 text-indigo-400" />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4">
-              AI Speech<span className="text-indigo-400">2</span>Text
+            <h1 className="text-5xl font-extrabold tracking-tight text-white mb-4">
+              AI Speech<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">2</span>Text
             </h1>
-            <p className="text-slate-400 text-lg">
+            <p className="text-slate-400 text-lg font-medium">
               Powered by Groq Whisper & Firebase
             </p>
           </header>
@@ -61,7 +62,7 @@ export default function App() {
           <Navigation />
 
           {/* Page Content */}
-          <main>
+          <main className="w-full flex justify-center">
             <Routes>
               <Route path="/" element={<RecordPage />} />
               <Route path="/history" element={<HistoryPage />} />
