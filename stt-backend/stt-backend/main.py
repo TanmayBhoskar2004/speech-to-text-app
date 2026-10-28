@@ -10,7 +10,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from firebase_admin import credentials, firestore
 from groq import Groq
-from pydantic import BaseModel # 👈 NEW: Required for the translation endpoint
+from pydantic import BaseModel
 
 # --- Initialize Firebase Admin SDK ---
 service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
@@ -50,7 +50,6 @@ async def transcribe_audio(file: UploadFile = File(...)):
     Accepts an audio file, transcribes it via Groq Whisper,
     saves the result to Firestore, and returns the text.
     """
-    # 1. Validate file type
     allowed_types = {
         "audio/wav", "audio/mpeg", "audio/webm",
         "audio/ogg", "audio/flac", "audio/mp4", "audio/x-m4a",
@@ -60,7 +59,6 @@ async def transcribe_audio(file: UploadFile = File(...)):
     ):
         raise HTTPException(status_code=400, detail="Unsupported audio format.")
 
-    # 2. Save uploaded file to a temporary location
     temp_dir = tempfile.gettempdir()
     temp_path = os.path.join(temp_dir, f"stt_{datetime.now().timestamp()}_{file.filename}")
 
@@ -68,7 +66,6 @@ async def transcribe_audio(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # 3. Send to Groq Whisper (With Smart Retry & Higher Accuracy)
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -89,7 +86,6 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
         text = transcription.text
 
-        # 4. Save to Firestore
         doc_ref = db.collection("transcriptions").add({
             "text": text,
             "original_filename": file.filename,
@@ -107,15 +103,12 @@ async def transcribe_audio(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
     finally:
-        # 5. Clean up temporary file
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
 
-# --- Fetch History Endpoint ---
 @app.get("/history")
 def get_history():
-    """Fetches the 20 most recent transcriptions from Firestore."""
     try:
         docs = (
             db.collection("transcriptions")
@@ -138,16 +131,15 @@ def get_history():
         raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
 
 
-# --- NEW: Translate to Hindi Endpoint ---
+# --- Translate to Hindi Endpoint ---
 class TranslationRequest(BaseModel):
     text: str
 
 @app.post("/translate")
 def translate_text(request: TranslationRequest):
-    """
-    Translates the given text into Hindi using Groq's Llama 3 model.
-    """
     try:
+        print(f"🔄 Translating text: {request.text}") # Debugging log
+        
         response = groq_client.chat.completions.create(
             messages=[
                 {
@@ -159,12 +151,14 @@ def translate_text(request: TranslationRequest):
                     "content": request.text
                 }
             ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.3,
+            model="llama-3.1-8b-instant", # CHANGED: Switched to the fastest, most stable free-tier model
+            temperature=0.1,
         )
         
         hindi_text = response.choices[0].message.content
+        print(f"✅ Translation success: {hindi_text}") # Debugging log
         return {"translated_text": hindi_text}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
+        print(f"❌ TRANSLATION ERROR: {str(e)}") # This will show in Render logs if it fails
+        raise HTTPException(status_code=500, detail=str(e))

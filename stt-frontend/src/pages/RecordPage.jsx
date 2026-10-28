@@ -4,8 +4,8 @@ import { Mic, Square, Loader2, CheckCircle2, AlertCircle, Languages } from "luci
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [translatedText, setTranslatedText] = useState(""); // State for Hindi text
-  const [isTranslating, setIsTranslating] = useState(false); // Loading state for translation
+  const [translatedText, setTranslatedText] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
   const [status, setStatus] = useState("Idle");
   
   const mediaRecorderRef = useRef(null);
@@ -17,7 +17,6 @@ export default function RecordPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Force high-quality Opus codec and 128kbps bitrate
       const mediaRecorder = new MediaRecorder(stream, { 
         mimeType: "audio/webm;codecs=opus",
         audioBitsPerSecond: 128000, 
@@ -36,13 +35,12 @@ export default function RecordPage() {
         streamRef.current.getTracks().forEach((track) => track.stop());
       };
 
-      // Record in 1-second chunks to prevent corruption
       mediaRecorder.start(1000);
       
       setIsRecording(true);
       setStatus("Recording...");
       setTranscript("");
-      setTranslatedText(""); // Reset Hindi translation on new recording
+      setTranslatedText("");
     } catch (err) {
       setStatus(`Error: Microphone access denied.`);
     }
@@ -78,7 +76,7 @@ export default function RecordPage() {
     }
   };
 
-  // NEW: Function to handle the Hindi translation
+  // 👇 UPDATED: Now captures and displays the exact backend error
   const handleTranslate = async () => {
     if (!transcript) return;
     
@@ -92,12 +90,17 @@ export default function RecordPage() {
         body: JSON.stringify({ text: transcript }),
       });
 
-      if (!response.ok) throw new Error("Translation failed");
+      const data = await response.json(); // Read the response first
 
-      const data = await response.json();
+      if (!response.ok) {
+        // Throw the exact error message from FastAPI
+        throw new Error(data.detail || "Unknown error occurred"); 
+      }
+
       setTranslatedText(data.translated_text);
     } catch (err) {
-      alert("Failed to translate. Please try again.");
+      // Show the EXACT error in the popup
+      alert(`Error: ${err.message}`);
     } finally {
       setIsTranslating(false);
     }
