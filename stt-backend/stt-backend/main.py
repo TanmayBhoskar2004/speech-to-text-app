@@ -151,8 +151,9 @@ def translate_text(request: TranslationRequest):
                     "content": request.text
                 }
             ],
-            model="llama-3.1-8b-instant", # CHANGED: Switched to the fastest, most stable free-tier model
+            model="openai/gpt-oss-120b", # 👈 NEW: Groq's current supported model
             temperature=0.1,
+            reasoning_effort="low" # Keeps the response fast and focused
         )
         
         hindi_text = response.choices[0].message.content
