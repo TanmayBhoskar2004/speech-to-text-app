@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
-import { Mic, Square, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Mic, Square, Loader2, CheckCircle2, AlertCircle, Languages } from "lucide-react";
 
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [translatedText, setTranslatedText] = useState(""); // State for Hindi text
+  const [isTranslating, setIsTranslating] = useState(false); // Loading state for translation
   const [status, setStatus] = useState("Idle");
   
   const mediaRecorderRef = useRef(null);
@@ -15,7 +17,7 @@ export default function RecordPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // 👇 IMPROVEMENT 1: Force high-quality Opus codec and 128kbps bitrate
+      // Force high-quality Opus codec and 128kbps bitrate
       const mediaRecorder = new MediaRecorder(stream, { 
         mimeType: "audio/webm;codecs=opus",
         audioBitsPerSecond: 128000, 
@@ -34,12 +36,13 @@ export default function RecordPage() {
         streamRef.current.getTracks().forEach((track) => track.stop());
       };
 
-      // 👇 IMPROVEMENT 2: Record in 1-second chunks to prevent corruption
+      // Record in 1-second chunks to prevent corruption
       mediaRecorder.start(1000);
       
       setIsRecording(true);
       setStatus("Recording...");
       setTranscript("");
+      setTranslatedText(""); // Reset Hindi translation on new recording
     } catch (err) {
       setStatus(`Error: Microphone access denied.`);
     }
@@ -72,6 +75,31 @@ export default function RecordPage() {
       setStatus("Done");
     } catch (err) {
       setStatus(`Error: ${err.message}`);
+    }
+  };
+
+  // NEW: Function to handle the Hindi translation
+  const handleTranslate = async () => {
+    if (!transcript) return;
+    
+    setIsTranslating(true);
+    try {
+      const response = await fetch("https://stt-backend-usxc.onrender.com/translate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: transcript }),
+      });
+
+      if (!response.ok) throw new Error("Translation failed");
+
+      const data = await response.json();
+      setTranslatedText(data.translated_text);
+    } catch (err) {
+      alert("Failed to translate. Please try again.");
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -120,15 +148,47 @@ export default function RecordPage() {
         )}
       </button>
 
-      {/* Latest Transcript */}
+      {/* Latest Transcript & Translation Area */}
       {transcript && (
-        <div className="mt-12 w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6 animate-in slide-in-from-bottom-4 duration-500">
-          <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3 flex items-center">
-            <SparklesIcon /> Transcription Result
-          </h3>
-          <p className="text-lg text-slate-200 leading-relaxed font-medium">
-            "{transcript}"
-          </p>
+        <div className="mt-12 w-full flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-500">
+          
+          {/* English Result */}
+          <div className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3 flex items-center">
+              <SparklesIcon /> Transcription Result
+            </h3>
+            <p className="text-lg text-slate-200 leading-relaxed font-medium">
+              "{transcript}"
+            </p>
+          </div>
+
+          {/* Translate Button */}
+          {!translatedText && (
+            <button
+              onClick={handleTranslate}
+              disabled={isTranslating}
+              className="self-center flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-full transition-all shadow-[0_0_20px_rgba(147,51,234,0.3)] disabled:opacity-50"
+            >
+              {isTranslating ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> Translating...</>
+              ) : (
+                <><Languages className="w-5 h-5" /> Translate to Hindi</>
+              )}
+            </button>
+          )}
+
+          {/* Hindi Result */}
+          {translatedText && (
+            <div className="w-full bg-purple-900/20 border border-purple-500/30 rounded-2xl p-6 animate-in fade-in duration-500">
+              <h3 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-3 flex items-center">
+                Hindi Translation (हिंदी)
+              </h3>
+              <p className="text-lg text-purple-100 leading-relaxed font-medium">
+                "{translatedText}"
+              </p>
+            </div>
+          )}
+
         </div>
       )}
     </div>

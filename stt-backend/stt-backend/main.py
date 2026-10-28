@@ -10,6 +10,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from firebase_admin import credentials, firestore
 from groq import Groq
+from pydantic import BaseModel # 👈 NEW: Required for the translation endpoint
 
 # --- Initialize Firebase Admin SDK ---
 service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
@@ -74,19 +75,17 @@ async def transcribe_audio(file: UploadFile = File(...)):
                 with open(temp_path, "rb") as audio_file:
                     transcription = groq_client.audio.transcriptions.create(
                         file=audio_file,
-                        model="whisper-large-v3", # Changed from turbo to full model for accuracy
+                        model="whisper-large-v3", 
                         response_format="json",
                         language="en",
-                        # 👇 The prompt forces the AI to use punctuation and proper spelling
                         prompt="Transcribe accurately with proper punctuation and capitalization.",
                     )
-                break # If successful, break out of the retry loop
+                break 
             except Exception as e:
-                # If Groq is busy (rate limit), wait and try again
                 if "429" in str(e) and attempt < max_retries - 1:
-                    time.sleep(2 ** attempt) # Wait 1s, then 2s
+                    time.sleep(2 ** attempt) 
                 else:
-                    raise e # If it's a different error, or out of retries, crash
+                    raise e 
 
         text = transcription.text
 
@@ -137,3 +136,35 @@ def get_history():
         return history
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
+
+
+# --- NEW: Translate to Hindi Endpoint ---
+class TranslationRequest(BaseModel):
+    text: str
+
+@app.post("/translate")
+def translate_text(request: TranslationRequest):
+    """
+    Translates the given text into Hindi using Groq's Llama 3 model.
+    """
+    try:
+        response = groq_client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a professional translator. Translate the following text accurately into Hindi. Only return the translated Hindi text, do not include any explanations or English text."
+                },
+                {
+                    "role": "user",
+                    "content": request.text
+                }
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+        )
+        
+        hindi_text = response.choices[0].message.content
+        return {"translated_text": hindi_text}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
